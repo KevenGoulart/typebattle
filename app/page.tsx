@@ -10,10 +10,10 @@ export default function Home() {
       </h2>
       <img src="/typing.gif" className="rounded-[40px] w-[200px]" />
       <div className="flex items-center gap-4">
-        <Button asChild className="h-12 w-20 text-2xl">
+        <Button asChild className="h-12 w-20 text-2xl rounded-xl">
           <Link href="/create">Criar</Link>
         </Button>
-        <Button asChild className="h-12 w-24 text-2xl">
+        <Button asChild className="h-12 w-24 text-2xl rounded-xl">
           <Link href="/join">Entrar</Link>
         </Button>
       </div>
