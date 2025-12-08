@@ -189,7 +189,7 @@ export default function RoomPage() {
   }
 
   return (
-    <div className="min-h-screen p-10 bg-black text-white">
+    <div className="min-h-screen p-10 bg-black/60 text-white">
       <h1 className="text-2xl font-semibold mb-6">Sala: {roomId}</h1>
 
       {winner && (
@@ -199,7 +199,7 @@ export default function RoomPage() {
       )}
 
       <div className="grid grid-cols-2 gap-10">
-        <div className="p-6 border rounded-xl">
+        <div className="p-6 border border-white/50 rounded-2xl">
           <h2 className="mb-4 text-xl font-semibold">Você</h2>
 
           <div className="mb-4">
@@ -218,7 +218,7 @@ export default function RoomPage() {
           </p>
         </div>
 
-        <div className="p-6 border rounded-xl">
+        <div className="p-6 border border-white/50 rounded-2xl">
           <h2 className="mb-4 text-xl font-semibold">Oponente</h2>
 
           {opponent ? (
