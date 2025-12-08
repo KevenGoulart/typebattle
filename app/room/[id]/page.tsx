@@ -113,26 +113,42 @@ export default function RoomPage() {
         },
         async (payload) => {
           const room = payload.new as any;
+          const old = payload.old as any;
 
           setRoomStatus(room.status);
           setCountdown(room.countdown);
 
-          if (
-            payload.eventType === "UPDATE" &&
-            room.status === "countdown" &&
-            payload.old.countdown !== room.countdown
-          ) {
-            setTimeout(async () => {
-              const n = room.countdown - 1;
+          // 👉 Só roda o countdown quando o status mudou para "countdown"
+          const startedNow =
+            old?.status !== "countdown" && room.status === "countdown";
+
+          if (startedNow) {
+            // Começar o timer no banco
+            const tick = async () => {
+              await new Promise((r) => setTimeout(r, 1000));
+
+              const { data: current } = await supabase
+                .from("rooms")
+                .select("countdown")
+                .eq("id", roomId)
+                .single();
+
+              if (!current) return;
+
+              const next = current.countdown - 1;
 
               await supabase
                 .from("rooms")
                 .update({
-                  countdown: n,
-                  status: n === 0 ? "playing" : "countdown",
+                  countdown: next,
+                  status: next === 0 ? "playing" : "countdown",
                 })
                 .eq("id", roomId);
-            }, 1000);
+
+              if (next > 0) tick(); // continua até chegar a zero
+            };
+
+            tick(); // inicia o countdown
           }
         }
       )
