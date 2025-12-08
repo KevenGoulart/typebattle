@@ -181,7 +181,7 @@ export default function RoomPage() {
       }
 
       return (
-        <span key={index} className={`${color} text-4xl font-bold`}>
+        <span key={index} className={`${color} text-5xl font-bold`}>
           {char}
         </span>
       );
@@ -192,12 +192,8 @@ export default function RoomPage() {
     <div className="min-h-screen p-10 bg-black text-white">
       <h1 className="text-2xl font-semibold mb-6">Sala: {roomId}</h1>
 
-      {roomStatus === "countdown" && (
-        <h2 className="text-5xl font-bold mb-6 text-yellow-400">{countdown}</h2>
-      )}
-
       {winner && (
-        <h2 className="text-3xl mb-6 font-bold text-green-400">
+        <h2 className="text-3xl mb-6 w-fit mx-auto font-bold text-green-400">
           {winner === "you" ? "✅ VOCÊ GANHOU!" : "❌ O OPONENTE GANHOU"}
         </h2>
       )}
@@ -262,6 +258,10 @@ export default function RoomPage() {
             {ready ? "Aguardando oponente..." : "Estou pronto!"}
           </Button>
         </div>
+      )}
+
+      {roomStatus === "countdown" && (
+        <h2 className="text-5xl font-bold mb-6 text-yellow-400">{countdown}</h2>
       )}
     </div>
   );
