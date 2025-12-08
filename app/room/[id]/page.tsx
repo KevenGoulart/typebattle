@@ -26,18 +26,36 @@ export default function RoomPage() {
 
   useEffect(() => {
     const join = async () => {
-      const shuffled = [...ALL_WORDS].sort(() => Math.random() - 0.5);
-      const tenWords = shuffled.slice(0, 10);
-      setWORDS(tenWords);
-
       const id = uuidv4();
       setPlayerId(id);
 
-      await supabase.from("rooms").upsert({
-        id: roomId,
-        status: "waiting",
-      });
+      // Verifica se a sala já existe
+      const { data: roomData } = await supabase
+        .from("rooms")
+        .select("*")
+        .eq("id", roomId)
+        .single();
 
+      let words: string[] = [];
+
+      if (!roomData) {
+        // 🔥 sala não existe → criar e gerar palavras
+        const shuffled = [...ALL_WORDS].sort(() => Math.random() - 0.5);
+        words = shuffled.slice(0, 10);
+
+        await supabase.from("rooms").upsert({
+          id: roomId,
+          status: "waiting",
+          words,
+        });
+      } else {
+        // sala já existe → reaproveitar as mesmas palavras
+        words = roomData.words;
+      }
+
+      setWORDS(words);
+
+      // adicionar jogador
       await supabase.from("players").insert({
         id,
         room_id: roomId,
@@ -117,6 +135,7 @@ export default function RoomPage() {
         async (payload) => {
           const room = payload.new as any;
           setRoomStatus(room.status);
+          if (room.words) setWORDS(room.words);
         }
       )
       .subscribe();
