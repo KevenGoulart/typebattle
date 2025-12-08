@@ -261,7 +261,9 @@ export default function RoomPage() {
       )}
 
       {roomStatus === "countdown" && (
-        <h2 className="text-5xl font-bold mb-6 text-yellow-400">{countdown}</h2>
+        <h2 className="text-5xl font-bold mt-4 mx-auto w-fit text-yellow-400">
+          {countdown}
+        </h2>
       )}
     </div>
   );
