@@ -29,11 +29,19 @@ export default function RoomPage() {
       const id = uuidv4();
       setPlayerId(id);
 
-      await supabase.from("rooms").upsert({
-        id: roomId,
-        status: "waiting",
-        host: id,
-      });
+      const { data: room } = await supabase
+        .from("rooms")
+        .select("*")
+        .eq("id", roomId)
+        .single();
+
+      if (!room) {
+        await supabase.from("rooms").insert({
+          id: roomId,
+          status: "waiting",
+          host: id,
+        });
+      }
 
       await supabase.from("players").insert({
         id,
