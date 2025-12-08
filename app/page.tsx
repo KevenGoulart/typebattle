@@ -8,6 +8,7 @@ export default function Home() {
       <h2 className="text-xl font-medium">
         Crie ou entre em uma sala para disputar quem digita mais rápido
       </h2>
+      <img src="/typing.gif" className="rounded-[40px] w-[200px]" />
       <div className="flex items-center gap-4">
         <Button asChild className="h-12 w-20 text-2xl">
           <Link href="/create">Criar</Link>
