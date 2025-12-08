@@ -29,19 +29,10 @@ export default function RoomPage() {
       const id = uuidv4();
       setPlayerId(id);
 
-      const { data: room } = await supabase
-        .from("rooms")
-        .select("*")
-        .eq("id", roomId)
-        .single();
-
-      if (!room) {
-        await supabase.from("rooms").insert({
-          id: roomId,
-          status: "waiting",
-          host: id,
-        });
-      }
+      await supabase.from("rooms").upsert({
+        id: roomId,
+        status: "waiting",
+      });
 
       await supabase.from("players").insert({
         id,
@@ -125,8 +116,6 @@ export default function RoomPage() {
 
           setRoomStatus(room.status);
           setCountdown(room.countdown);
-
-          if (playerId !== room.host) return;
 
           if (room.status === "countdown" && room.countdown > 0) {
             setTimeout(async () => {
