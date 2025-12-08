@@ -16,7 +16,6 @@ export default function RoomPage() {
 
   const [ready, setReady] = useState(false);
   const [roomStatus, setRoomStatus] = useState("waiting");
-  const [countdown, setCountdown] = useState<number | null>(null);
 
   const [currentWordIndex, setCurrentWordIndex] = useState(0);
   const [input, setInput] = useState("");
@@ -78,15 +77,14 @@ export default function RoomPage() {
               .select("*")
               .eq("room_id", roomId);
 
-            if (
-              players?.length === 2 &&
-              players.every((p) => p.ready === true)
-            ) {
+            const bothReady =
+              players?.length === 2 && players.every((p) => p.ready === true);
+
+            if (bothReady) {
               await supabase
                 .from("rooms")
                 .update({
-                  status: "countdown",
-                  countdown: 3,
+                  status: "playing",
                 })
                 .eq("id", roomId);
             }
@@ -101,8 +99,6 @@ export default function RoomPage() {
   }, [playerId]);
 
   useEffect(() => {
-    let ticking = false; // impede loops duplicados
-
     const channelRoom = supabase
       .channel(`room:${roomId}:room`)
       .on(
@@ -115,64 +111,7 @@ export default function RoomPage() {
         },
         async (payload) => {
           const room = payload.new as any;
-          const old = payload.old as any;
-
           setRoomStatus(room.status);
-          setCountdown(room.countdown);
-
-          // dispara apenas quando muda para countdown pela 1ª vez
-          const startedNow =
-            old?.status !== "countdown" &&
-            room.status === "countdown" &&
-            room.countdown > 0;
-
-          if (startedNow && !ticking) {
-            ticking = true;
-
-            const tick = async () => {
-              await new Promise((r) => setTimeout(r, 1000));
-
-              const { data: current } = await supabase
-                .from("rooms")
-                .select("countdown, status")
-                .eq("id", roomId)
-                .single();
-
-              if (!current) return;
-
-              // SE JÁ NÃO ESTIVER MAIS EM COUNTDOWN → para tudo
-              if (current.status !== "countdown") {
-                ticking = false;
-                return;
-              }
-
-              // SE O NÚMERO CHEGOU A 0 → finaliza
-              if (current.countdown <= 1) {
-                await supabase
-                  .from("rooms")
-                  .update({
-                    countdown: 0,
-                    status: "playing",
-                  })
-                  .eq("id", roomId);
-
-                ticking = false;
-                return;
-              }
-
-              // decrementa normalmente
-              await supabase
-                .from("rooms")
-                .update({
-                  countdown: current.countdown - 1,
-                })
-                .eq("id", roomId);
-
-              tick(); // próximo segundo
-            };
-
-            tick();
-          }
         }
       )
       .subscribe();
@@ -285,6 +224,7 @@ export default function RoomPage() {
           )}
         </div>
       </div>
+
       {roomStatus === "waiting" && (
         <div className="mt-4 mx-auto w-fit">
           <Button
@@ -301,12 +241,6 @@ export default function RoomPage() {
             {ready ? "Aguardando oponente..." : "Estou pronto!"}
           </Button>
         </div>
-      )}
-
-      {roomStatus === "countdown" && (
-        <h2 className="text-5xl font-bold mt-4 mx-auto w-fit text-yellow-400">
-          {countdown}
-        </h2>
       )}
     </div>
   );
