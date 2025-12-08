@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { WORDS } from "@/lib/words";
+import { ALL_WORDS } from "@/lib/words";
 import { v4 as uuidv4 } from "uuid";
 import { Button } from "@/components/ui/button";
 
@@ -17,6 +17,7 @@ export default function RoomPage() {
   const [ready, setReady] = useState(false);
   const [roomStatus, setRoomStatus] = useState("waiting");
 
+  const [WORDS, setWORDS] = useState<string[]>([]);
   const [currentWordIndex, setCurrentWordIndex] = useState(0);
   const [input, setInput] = useState("");
   const currentWord = WORDS[currentWordIndex];
@@ -25,6 +26,10 @@ export default function RoomPage() {
 
   useEffect(() => {
     const join = async () => {
+      const shuffled = [...ALL_WORDS].sort(() => Math.random() - 0.5);
+      const tenWords = shuffled.slice(0, 10);
+      setWORDS(tenWords);
+
       const id = uuidv4();
       setPlayerId(id);
 
