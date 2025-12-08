@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { WORDS } from "@/lib/words";
 import { v4 as uuidv4 } from "uuid";
+import { Button } from "@/components/ui/button";
 
 export default function RoomPage() {
   const { id } = useParams();
@@ -13,24 +14,26 @@ export default function RoomPage() {
   const [playerId, setPlayerId] = useState<string>("");
   const [opponent, setOpponent] = useState<any>(null);
 
+  const [ready, setReady] = useState(false);
+  const [roomStatus, setRoomStatus] = useState("waiting");
+  const [countdown, setCountdown] = useState<number | null>(null);
+
   const [currentWordIndex, setCurrentWordIndex] = useState(0);
   const [input, setInput] = useState("");
   const currentWord = WORDS[currentWordIndex];
 
   const [winner, setWinner] = useState<string | null>(null);
 
-  // ✅ Criar jogador ao entrar na sala
   useEffect(() => {
     const join = async () => {
       const id = uuidv4();
       setPlayerId(id);
 
-      // cria sala se não existir
       await supabase.from("rooms").upsert({
         id: roomId,
+        status: "waiting",
       });
 
-      // cria player
       await supabase.from("players").insert({
         id,
         room_id: roomId,
@@ -47,10 +50,9 @@ export default function RoomPage() {
     };
   }, []);
 
-  // ✅ Realtime - escuta mudanças dos players
   useEffect(() => {
-    const channel = supabase
-      .channel(`room:${roomId}`)
+    const channelPlayers = supabase
+      .channel(`room:${roomId}:players`)
       .on(
         "postgres_changes",
         {
@@ -59,14 +61,34 @@ export default function RoomPage() {
           table: "players",
           filter: `room_id=eq.${roomId}`,
         },
-        (payload) => {
+        async (payload) => {
           const player = payload.new as any;
 
           if (player.id !== playerId) {
             setOpponent(player);
+          }
 
-            if (player.finished) {
-              setWinner("opponent");
+          if (player.finished) {
+            setWinner("opponent");
+          }
+
+          if (payload.eventType === "UPDATE") {
+            const { data: players } = await supabase
+              .from("players")
+              .select("*")
+              .eq("room_id", roomId);
+
+            if (
+              players?.length === 2 &&
+              players.every((p) => p.ready === true)
+            ) {
+              await supabase
+                .from("rooms")
+                .update({
+                  status: "countdown",
+                  countdown: 3,
+                })
+                .eq("id", roomId);
             }
           }
         }
@@ -74,22 +96,58 @@ export default function RoomPage() {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(channelPlayers);
     };
   }, [playerId]);
 
-  // ✅ Quando digitar
+  useEffect(() => {
+    const channelRoom = supabase
+      .channel(`room:${roomId}:room`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "rooms",
+          filter: `id=eq.${roomId}`,
+        },
+        async (payload) => {
+          const room = payload.new as any;
+
+          setRoomStatus(room.status);
+          setCountdown(room.countdown);
+
+          if (room.status === "countdown" && room.countdown > 0) {
+            setTimeout(async () => {
+              const n = room.countdown - 1;
+
+              await supabase
+                .from("rooms")
+                .update({
+                  countdown: n,
+                  status: n === 0 ? "playing" : "countdown",
+                })
+                .eq("id", roomId);
+            }, 1000);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channelRoom);
+    };
+  }, []);
+
   const handleChange = async (e: any) => {
+    if (roomStatus !== "playing") return;
+
     const value = e.target.value;
-
     if (!currentWord) return;
-
-    // Limita ao tamanho da palavra
     if (value.length > currentWord.length) return;
 
     setInput(value);
 
-    // Atualiza progresso no banco
     await supabase
       .from("players")
       .update({
@@ -98,10 +156,8 @@ export default function RoomPage() {
       })
       .eq("id", playerId);
 
-    // ✅ Se acertou a palavra inteira
     if (value === currentWord) {
       if (currentWordIndex + 1 === WORDS.length) {
-        // FINALIZOU
         await supabase
           .from("players")
           .update({ finished: true })
@@ -109,24 +165,19 @@ export default function RoomPage() {
 
         setWinner("you");
       } else {
-        // Avança para próxima palavra
         setCurrentWordIndex((prev) => prev + 1);
         setInput("");
       }
     }
   };
 
-  // ✅ renderizar palavra com letras coloridas
   function renderWord(word: string, typed: string) {
     return word.split("").map((char, index) => {
-      let color = "text-gray-400";
+      let color = "text-gray-500";
 
       if (index < typed.length) {
-        if (typed[index] === char) {
-          color = "text-yellow-500";
-        } else {
-          color = "text-red-500";
-        }
+        if (typed[index] === char) color = "text-yellow-500";
+        else color = "text-red-500";
       }
 
       return (
@@ -139,38 +190,40 @@ export default function RoomPage() {
 
   return (
     <div className="min-h-screen p-10 bg-black text-white">
-      <h1 className="text-xl mb-6">Sala: {roomId}</h1>
+      <h1 className="text-2xl font-semibold mb-6">Sala: {roomId}</h1>
+
+      {roomStatus === "countdown" && (
+        <h2 className="text-5xl font-bold mb-6 text-yellow-400">{countdown}</h2>
+      )}
 
       {winner && (
-        <h2 className="text-3xl mb-6 text-green-400">
+        <h2 className="text-3xl mb-6 font-bold text-green-400">
           {winner === "you" ? "✅ VOCÊ GANHOU!" : "❌ O OPONENTE GANHOU"}
         </h2>
       )}
 
       <div className="grid grid-cols-2 gap-10">
-        {/* SEU LADO */}
         <div className="p-6 border rounded-xl">
-          <h2 className="mb-4 text-xl">Você</h2>
+          <h2 className="mb-4 text-xl font-semibold">Você</h2>
 
           <div className="mb-4">
             {currentWord && renderWord(currentWord, input)}
           </div>
 
           <input
-            className="w-full p-3 text-black text-lg"
+            className="w-full p-3 text-white border border-white/50 rounded-lg text-lg"
             value={input}
             onChange={handleChange}
-            disabled={!!winner}
+            disabled={roomStatus !== "playing" || !!winner}
           />
 
-          <p className="mt-4">
+          <p className="mt-4 font-semibold">
             Palavra: {currentWordIndex + 1} / {WORDS.length}
           </p>
         </div>
 
-        {/* OPONENTE */}
         <div className="p-6 border rounded-xl">
-          <h2 className="mb-4 text-xl">Oponente</h2>
+          <h2 className="mb-4 text-xl font-semibold">Oponente</h2>
 
           {opponent ? (
             <>
@@ -184,7 +237,7 @@ export default function RoomPage() {
                 )}
               </div>
 
-              <p>
+              <p className="font-semibold">
                 Palavra: {opponent.word_index + 1} / {WORDS.length}
               </p>
             </>
@@ -193,6 +246,23 @@ export default function RoomPage() {
           )}
         </div>
       </div>
+      {roomStatus === "waiting" && (
+        <div className="mt-4 mx-auto w-fit">
+          <Button
+            onClick={async () => {
+              setReady(true);
+              await supabase
+                .from("players")
+                .update({ ready: true })
+                .eq("id", playerId);
+            }}
+            className="bg-green-800 h-12 cursor-pointer hover:bg-green-600 text-white px-6 py-3 rounded-lg text-xl font-bold"
+            disabled={ready}
+          >
+            {ready ? "Aguardando oponente..." : "Estou pronto!"}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
