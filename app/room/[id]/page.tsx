@@ -67,7 +67,7 @@ export default function RoomPage() {
             setOpponent(player);
           }
 
-          if (player.finished) {
+          if (player.finished && player.id !== playerId) {
             setWinner("opponent");
           }
 
