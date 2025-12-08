@@ -9,8 +9,8 @@ export default function JoinPage() {
   const router = useRouter();
 
   return (
-    <div className="h-screen flex flex-col items-center justify-center gap-4">
-      <h1 className="text-2xl font-bold">Entrar em uma sala</h1>
+    <div className="flex flex-col items-center mt-28 gap-4">
+      <h1 className="text-4xl font-bold">Entrar em uma sala</h1>
 
       <input
         className="border border-white/70 p-2 rounded-lg w-40 text-center uppercase"
@@ -22,7 +22,7 @@ export default function JoinPage() {
 
       <Button
         onClick={() => router.push(`/room/${code}`)}
-        className="px-4 py-2 rounded-lg"
+        className="h-12 w-24 text-2xl"
       >
         Entrar
       </Button>
