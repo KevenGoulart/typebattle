@@ -120,8 +120,7 @@ export default function RoomPage() {
           if (
             payload.eventType === "UPDATE" &&
             room.status === "countdown" &&
-            payload.old.countdown !== room.countdown &&
-            room.countdown === 3
+            payload.old.countdown !== room.countdown
           ) {
             setTimeout(async () => {
               const n = room.countdown - 1;
