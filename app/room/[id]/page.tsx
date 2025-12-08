@@ -1,113 +1,128 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { socket } from "@/lib/socket-client";
 import { useParams } from "next/navigation";
-
-const WORDS = [
-  "typescript",
-  "socket",
-  "react",
-  "component",
-  "hook",
-  "javascript",
-  "context",
-  "frontend",
-  "backend",
-  "deploy",
-];
+import { supabase } from "@/lib/supabase";
+import { WORDS } from "@/lib/words";
+import { v4 as uuidv4 } from "uuid";
 
 export default function RoomPage() {
   const { id } = useParams();
   const roomId = String(id);
 
-  const [startTime, setStartTime] = useState<number | null>(null);
-  const [wpm, setWpm] = useState<number | null>(null);
+  const [playerId, setPlayerId] = useState<string>("");
+  const [opponent, setOpponent] = useState<any>(null);
 
-  const [myIndex, setMyIndex] = useState(0);
-  const [myInput, setMyInput] = useState("");
+  const [currentWordIndex, setCurrentWordIndex] = useState(0);
+  const [input, setInput] = useState("");
+  const currentWord = WORDS[currentWordIndex];
 
-  const [opponentIndex, setOpponentIndex] = useState(0);
-  const [opponentInput, setOpponentInput] = useState("");
+  const [winner, setWinner] = useState<string | null>(null);
 
-  const myWord = WORDS[myIndex];
-  const opponentWord = WORDS[opponentIndex];
-
+  // ✅ Criar jogador ao entrar na sala
   useEffect(() => {
-    socket.emit("join-room", {
-      roomId,
-      username: "Player",
-    });
+    const join = async () => {
+      const id = uuidv4();
+      setPlayerId(id);
 
-    socket.on("opponent-typing", ({ progress }) => {
-      setOpponentInput(progress);
-    });
+      // cria sala se não existir
+      await supabase.from("rooms").upsert({
+        id: roomId,
+      });
 
-    socket.on("opponent-advanced", ({ index }) => {
-      setOpponentIndex(index);
-      setOpponentInput("");
-    });
+      // cria player
+      await supabase.from("players").insert({
+        id,
+        room_id: roomId,
+        username: "Player",
+      });
+    };
 
-    socket.on("opponent-finished", () => {
-      alert(`Oponente terminou`);
-    });
+    join();
 
     return () => {
-      socket.off("opponent-typing");
-      socket.off("opponent-advanced");
-      socket.off("opponent-finished");
+      if (playerId) {
+        supabase.from("players").delete().eq("id", playerId);
+      }
     };
-  }, [roomId]);
+  }, []);
 
-  function onType(e: any) {
+  // ✅ Realtime - escuta mudanças dos players
+  useEffect(() => {
+    const channel = supabase
+      .channel(`room:${roomId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "players",
+          filter: `room_id=eq.${roomId}`,
+        },
+        (payload) => {
+          const player = payload.new as any;
+
+          if (player.id !== playerId) {
+            setOpponent(player);
+
+            if (player.finished) {
+              setWinner("opponent");
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [playerId]);
+
+  // ✅ Quando digitar
+  const handleChange = async (e: any) => {
     const value = e.target.value;
 
-    if (!startTime) {
-      setStartTime(Date.now());
-    }
+    if (!currentWord) return;
 
-    setMyInput(value);
+    // Limita ao tamanho da palavra
+    if (value.length > currentWord.length) return;
 
-    socket.emit("typing", {
-      roomId,
-      index: myIndex,
-      progress: value,
-    });
+    setInput(value);
 
-    if (value === myWord) {
-      const nextIndex = myIndex + 1;
+    // Atualiza progresso no banco
+    await supabase
+      .from("players")
+      .update({
+        word_index: currentWordIndex,
+        letter_index: value.length,
+      })
+      .eq("id", playerId);
 
-      if (nextIndex === WORDS.length) {
-        const minutes = (Date.now() - startTime!) / 60000;
-        const words = WORDS.join(" ").length / 5;
-        const calcWpm = Math.floor(words / minutes);
+    // ✅ Se acertou a palavra inteira
+    if (value === currentWord) {
+      if (currentWordIndex + 1 === WORDS.length) {
+        // FINALIZOU
+        await supabase
+          .from("players")
+          .update({ finished: true })
+          .eq("id", playerId);
 
-        setWpm(calcWpm);
-
-        socket.emit("finish", {
-          roomId,
-          wpm: calcWpm,
-        });
-
-        return;
+        setWinner("you");
+      } else {
+        // Avança para próxima palavra
+        setCurrentWordIndex((prev) => prev + 1);
+        setInput("");
       }
-
-      setMyIndex(nextIndex);
-      setMyInput("");
-
-      socket.emit("advance", {
-        roomId,
-        index: nextIndex,
-      });
     }
-  }
+  };
 
-  function renderHighlightedWord(word: string, input: string = "") {
+  // ✅ renderizar palavra com letras coloridas
+  function renderWord(word: string, typed: string) {
     return word.split("").map((char, index) => {
       let color = "text-gray-400";
 
-      if (index < input.length) {
-        if (input[index] === char) {
+      if (index < typed.length) {
+        if (typed[index] === char) {
           color = "text-yellow-500";
         } else {
           color = "text-red-500";
@@ -115,7 +130,7 @@ export default function RoomPage() {
       }
 
       return (
-        <span key={index} className={`text-3xl font-bold ${color}`}>
+        <span key={index} className={`${color} text-4xl font-bold`}>
           {char}
         </span>
       );
@@ -123,45 +138,61 @@ export default function RoomPage() {
   }
 
   return (
-    <div className="p-10 min-h-screen bg-neutral-950 text-white">
-      <h1 className="text-2xl font-bold mb-8 text-center">Sala: {roomId}</h1>
+    <div className="min-h-screen p-10 bg-black text-white">
+      <h1 className="text-xl mb-6">Sala: {roomId}</h1>
 
-      <div className="grid grid-cols-2 gap-10">
-        <div className="border p-6 rounded-lg space-y-4">
-          <h2 className="text-xl font-bold text-center">Você</h2>
-          <p className="text-center text-sm">
-            Palavra {myIndex + 1} / {WORDS.length}
-          </p>
-
-          <div className="flex gap-1 justify-center mb-4">
-            {renderHighlightedWord(myWord, myInput)}
-          </div>
-
-          <textarea
-            className="border w-full p-4 bg-black border-white/50 rounded focus:outline-none"
-            value={myInput}
-            onChange={onType}
-            disabled={!!wpm}
-          />
-        </div>
-
-        <div className="border p-6 rounded-lg space-y-4 opacity-80">
-          <h2 className="text-xl font-bold text-center">Oponente</h2>
-          <p className="text-center text-sm">
-            Palavra {opponentIndex + 1} / {WORDS.length}
-          </p>
-
-          <div className="flex gap-1 justify-center mb-4">
-            {renderHighlightedWord(opponentWord, opponentInput)}
-          </div>
-        </div>
-      </div>
-
-      {wpm && (
-        <h2 className="text-3xl mt-10 font-bold text-center text-green-500">
-          🎉 Você venceu
+      {winner && (
+        <h2 className="text-3xl mb-6 text-green-400">
+          {winner === "you" ? "✅ VOCÊ GANHOU!" : "❌ O OPONENTE GANHOU"}
         </h2>
       )}
+
+      <div className="grid grid-cols-2 gap-10">
+        {/* SEU LADO */}
+        <div className="p-6 border rounded-xl">
+          <h2 className="mb-4 text-xl">Você</h2>
+
+          <div className="mb-4">
+            {currentWord && renderWord(currentWord, input)}
+          </div>
+
+          <input
+            className="w-full p-3 text-black text-lg"
+            value={input}
+            onChange={handleChange}
+            disabled={!!winner}
+          />
+
+          <p className="mt-4">
+            Palavra: {currentWordIndex + 1} / {WORDS.length}
+          </p>
+        </div>
+
+        {/* OPONENTE */}
+        <div className="p-6 border rounded-xl">
+          <h2 className="mb-4 text-xl">Oponente</h2>
+
+          {opponent ? (
+            <>
+              <div className="mb-4">
+                {renderWord(
+                  WORDS[opponent.word_index] || "",
+                  (WORDS[opponent.word_index] || "").slice(
+                    0,
+                    opponent.letter_index
+                  )
+                )}
+              </div>
+
+              <p>
+                Palavra: {opponent.word_index + 1} / {WORDS.length}
+              </p>
+            </>
+          ) : (
+            <p>Aguardando oponente entrar...</p>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
