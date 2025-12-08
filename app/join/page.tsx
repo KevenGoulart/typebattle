@@ -9,7 +9,7 @@ export default function JoinPage() {
   const router = useRouter();
 
   return (
-    <div className="flex flex-col items-center mt-28 gap-4">
+    <div className="flex flex-col items-center mt-16 gap-4">
       <h1 className="text-4xl font-bold">Entrar em uma sala</h1>
 
       <input

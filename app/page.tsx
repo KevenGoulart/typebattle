@@ -3,9 +3,11 @@ import Link from "next/link";
 
 export default function Home() {
   return (
-    <div className="flex flex-col items-center mt-28 gap-4">
+    <div className="flex flex-col items-center mt-16 gap-4">
       <h1 className="font-bold text-5xl">Typing Battle</h1>
-      <h2 className="text-3xl font-medium">Crie ou entre em uma sala</h2>
+      <h2 className="text-xl font-medium">
+        Crie ou entre em uma sala para disputar quem digita mais rápido
+      </h2>
       <div className="flex items-center gap-4">
         <Button asChild className="h-12 w-20 text-2xl">
           <Link href="/create">Criar</Link>

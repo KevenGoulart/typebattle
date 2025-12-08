@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { ALL_WORDS } from "@/lib/words";
 import { v4 as uuidv4 } from "uuid";
 import { Button } from "@/components/ui/button";
+import { FaCopy } from "react-icons/fa";
 
 export default function RoomPage() {
   const { id } = useParams();
@@ -29,7 +30,6 @@ export default function RoomPage() {
       const id = uuidv4();
       setPlayerId(id);
 
-      // Verifica se a sala já existe
       const { data: roomData } = await supabase
         .from("rooms")
         .select("*")
@@ -39,7 +39,6 @@ export default function RoomPage() {
       let words: string[] = [];
 
       if (!roomData) {
-        // 🔥 sala não existe → criar e gerar palavras
         const shuffled = [...ALL_WORDS].sort(() => Math.random() - 0.5);
         words = shuffled.slice(0, 10);
 
@@ -49,13 +48,11 @@ export default function RoomPage() {
           words,
         });
       } else {
-        // sala já existe → reaproveitar as mesmas palavras
         words = roomData.words;
       }
 
       setWORDS(words);
 
-      // adicionar jogador
       await supabase.from("players").insert({
         id,
         room_id: roomId,
@@ -196,10 +193,24 @@ export default function RoomPage() {
 
   return (
     <div className="min-h-screen p-10 bg-black/60 text-white">
-      <h1 className="text-2xl font-semibold mb-6">Sala: {roomId}</h1>
+      <h1 className="text-2xl font-semibold mb-6">
+        Sala:
+        <Button
+          onClick={async () => {
+            await navigator.clipboard.writeText(roomId);
+          }}
+          className="bg-blue-900 hover:bg-blue-800 cursor-pointer text-white px-2 py-3 rounded-lg text-xl font-bold ml-2"
+        >
+          <FaCopy /> {roomId}
+        </Button>
+      </h1>
 
       {winner && (
-        <h2 className="text-3xl mb-6 w-fit mx-auto font-bold text-green-400">
+        <h2
+          className={`text-3xl mb-6 w-fit mx-auto font-bold ${
+            winner === "you" ? "text-green-400" : "text-red-400"
+          }`}
+        >
           {winner === "you" ? "✅ VOCÊ GANHOU!" : "❌ O OPONENTE GANHOU"}
         </h2>
       )}
@@ -291,7 +302,7 @@ export default function RoomPage() {
               setCurrentWordIndex(0);
               setInput("");
             }}
-            className="bg-blue-700 hover:bg-blue-500 text-white px-6 py-3 rounded-lg text-xl font-bold"
+            className="bg-blue-900 hover:bg-blue-700 text-white px-6 py-3 rounded-lg text-xl font-bold"
           >
             🔁 Jogar Novamente
           </Button>
