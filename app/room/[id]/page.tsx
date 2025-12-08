@@ -32,6 +32,7 @@ export default function RoomPage() {
       await supabase.from("rooms").upsert({
         id: roomId,
         status: "waiting",
+        host: id,
       });
 
       await supabase.from("players").insert({
@@ -116,6 +117,8 @@ export default function RoomPage() {
 
           setRoomStatus(room.status);
           setCountdown(room.countdown);
+
+          if (playerId !== room.host) return;
 
           if (room.status === "countdown" && room.countdown > 0) {
             setTimeout(async () => {
