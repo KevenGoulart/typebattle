@@ -101,6 +101,8 @@ export default function RoomPage() {
   }, [playerId]);
 
   useEffect(() => {
+    let ticking = false; // impede loops duplicados
+
     const channelRoom = supabase
       .channel(`room:${roomId}:room`)
       .on(
@@ -118,37 +120,58 @@ export default function RoomPage() {
           setRoomStatus(room.status);
           setCountdown(room.countdown);
 
-          // 👉 Só roda o countdown quando o status mudou para "countdown"
+          // dispara apenas quando muda para countdown pela 1ª vez
           const startedNow =
-            old?.status !== "countdown" && room.status === "countdown";
+            old?.status !== "countdown" &&
+            room.status === "countdown" &&
+            room.countdown > 0;
 
-          if (startedNow) {
-            // Começar o timer no banco
+          if (startedNow && !ticking) {
+            ticking = true;
+
             const tick = async () => {
               await new Promise((r) => setTimeout(r, 1000));
 
               const { data: current } = await supabase
                 .from("rooms")
-                .select("countdown")
+                .select("countdown, status")
                 .eq("id", roomId)
                 .single();
 
               if (!current) return;
 
-              const next = current.countdown - 1;
+              // SE JÁ NÃO ESTIVER MAIS EM COUNTDOWN → para tudo
+              if (current.status !== "countdown") {
+                ticking = false;
+                return;
+              }
 
+              // SE O NÚMERO CHEGOU A 0 → finaliza
+              if (current.countdown <= 1) {
+                await supabase
+                  .from("rooms")
+                  .update({
+                    countdown: 0,
+                    status: "playing",
+                  })
+                  .eq("id", roomId);
+
+                ticking = false;
+                return;
+              }
+
+              // decrementa normalmente
               await supabase
                 .from("rooms")
                 .update({
-                  countdown: next,
-                  status: next === 0 ? "playing" : "countdown",
+                  countdown: current.countdown - 1,
                 })
                 .eq("id", roomId);
 
-              if (next > 0) tick(); // continua até chegar a zero
+              tick(); // próximo segundo
             };
 
-            tick(); // inicia o countdown
+            tick();
           }
         }
       )
