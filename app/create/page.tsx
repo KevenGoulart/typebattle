@@ -16,7 +16,7 @@ export default function CreateRoomPage() {
   }, [router]);
 
   return (
-    <div className="h-screen flex items-center justify-center text-xl font-semibold">
+    <div className="flex items-center mt-20 text-5xl font-semibold mx-auto w-fit">
       Criando sala...
     </div>
   );

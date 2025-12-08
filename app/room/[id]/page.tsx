@@ -242,6 +242,37 @@ export default function RoomPage() {
           </Button>
         </div>
       )}
+
+      {winner && (
+        <div className="w-fit mx-auto mt-6">
+          <Button
+            onClick={async () => {
+              await supabase
+                .from("rooms")
+                .update({ status: "waiting" })
+                .eq("id", roomId);
+
+              await supabase
+                .from("players")
+                .update({
+                  ready: false,
+                  finished: false,
+                  word_index: 0,
+                  letter_index: 0,
+                })
+                .eq("room_id", roomId);
+
+              setWinner(null);
+              setReady(false);
+              setCurrentWordIndex(0);
+              setInput("");
+            }}
+            className="bg-blue-700 hover:bg-blue-500 text-white px-6 py-3 rounded-lg text-xl font-bold"
+          >
+            🔁 Jogar Novamente
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
