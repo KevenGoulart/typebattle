@@ -311,7 +311,7 @@ export default function RoomPage() {
               className="h-12 w-fit text-2xl rounded-xl bg-slate-900 hover:bg-slate-300 border border-slate-600"
             >
               <AuroraText className="text-2xl font-semibold">
-                🔁 Jogar Novamente
+                Jogar Novamente
               </AuroraText>
             </Button>
           </div>

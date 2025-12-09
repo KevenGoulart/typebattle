@@ -30,7 +30,7 @@ export default function JoinPage() {
 
         <Button
           onClick={() => router.push(`/room/${code}`)}
-          className="h-12 w-24 text-2xl rounded-xl bg-slate-900 hover:bg-slate-300 border border-slate-600"
+          className="h-12 w-24 text-2xl rounded-xl bg-slate-900 hover:bg-slate-300 border border-slate-600 cursor-pointer"
         >
           <AuroraText className="text-2xl font-semibold">Entrar</AuroraText>
         </Button>
