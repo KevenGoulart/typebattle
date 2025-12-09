@@ -289,11 +289,6 @@ export default function RoomPage() {
             <Button
               onClick={async () => {
                 await supabase
-                  .from("rooms")
-                  .update({ status: "waiting" })
-                  .eq("id", roomId);
-
-                await supabase
                   .from("players")
                   .update({
                     ready: false,
@@ -301,14 +296,38 @@ export default function RoomPage() {
                     word_index: 0,
                     letter_index: 0,
                   })
+                  .eq("id", playerId);
+
+                const { data: players } = await supabase
+                  .from("players")
+                  .select("*")
                   .eq("room_id", roomId);
+
+                const bothReset = players?.every(
+                  (p) => p.ready === false && p.finished === false
+                );
+
+                if (bothReset) {
+                  const shuffled = [...ALL_WORDS].sort(
+                    () => Math.random() - 0.5
+                  );
+                  const newWords = shuffled.slice(0, 10);
+
+                  await supabase
+                    .from("rooms")
+                    .update({
+                      status: "waiting",
+                      words: newWords,
+                    })
+                    .eq("id", roomId);
+                }
 
                 setWinner(null);
                 setReady(false);
                 setCurrentWordIndex(0);
                 setInput("");
               }}
-              className="h-12 w-fit text-2xl rounded-xl bg-slate-900 hover:bg-slate-300 border border-slate-600"
+              className="h-12 w-fit text-2xl rounded-xl bg-slate-900 hover:bg-slate-300 border border-slate-600 cursor-pointer"
             >
               <AuroraText className="text-2xl font-semibold">
                 Jogar Novamente
