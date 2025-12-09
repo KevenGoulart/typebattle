@@ -203,7 +203,7 @@ export default function RoomPage() {
             onClick={async () => {
               await navigator.clipboard.writeText(roomId);
             }}
-            className="bg-blue-900 hover:bg-blue-800 cursor-pointer text-white px-2 py-3 rounded-lg text-xl font-bold ml-2"
+            className="bg-blue-900 hover:bg-blue-800 cursor-pointer px-2 py-3 rounded-lg text-xl text-white/85 font-bold ml-2"
           >
             <FaCopy /> {roomId}
           </Button>
@@ -288,11 +288,20 @@ export default function RoomPage() {
           <div className="w-fit mx-auto mt-6">
             <Button
               onClick={async () => {
+                // 1. Gerar novas palavras
+                const shuffled = [...ALL_WORDS].sort(() => Math.random() - 0.5);
+                const newWords = shuffled.slice(0, 10);
+
+                // 2. Atualizar a sala com palavras novas e status "waiting"
                 await supabase
                   .from("rooms")
-                  .update({ status: "waiting" })
+                  .update({
+                    status: "waiting",
+                    words: newWords, // <---- Atualizando aqui
+                  })
                   .eq("id", roomId);
 
+                // 3. Resetar todos os jogadores da sala
                 await supabase
                   .from("players")
                   .update({
@@ -303,10 +312,12 @@ export default function RoomPage() {
                   })
                   .eq("room_id", roomId);
 
+                // 4. Resetar estado local
                 setWinner(null);
                 setReady(false);
                 setCurrentWordIndex(0);
                 setInput("");
+                setWORDS(newWords); // <---- atualizar localmente
               }}
               className="bg-blue-900 hover:bg-blue-700 text-white px-6 py-3 rounded-lg text-xl font-bold"
             >
