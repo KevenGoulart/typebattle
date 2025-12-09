@@ -288,20 +288,11 @@ export default function RoomPage() {
           <div className="w-fit mx-auto mt-6">
             <Button
               onClick={async () => {
-                // 1. Gerar novas palavras
-                const shuffled = [...ALL_WORDS].sort(() => Math.random() - 0.5);
-                const newWords = shuffled.slice(0, 10);
-
-                // 2. Atualizar a sala com palavras novas e status "waiting"
                 await supabase
                   .from("rooms")
-                  .update({
-                    status: "waiting",
-                    words: newWords, // <---- Atualizando aqui
-                  })
+                  .update({ status: "waiting" })
                   .eq("id", roomId);
 
-                // 3. Resetar todos os jogadores da sala
                 await supabase
                   .from("players")
                   .update({
@@ -312,16 +303,16 @@ export default function RoomPage() {
                   })
                   .eq("room_id", roomId);
 
-                // 4. Resetar estado local
                 setWinner(null);
                 setReady(false);
                 setCurrentWordIndex(0);
                 setInput("");
-                setWORDS(newWords); // <---- atualizar localmente
               }}
-              className="bg-blue-900 hover:bg-blue-700 text-white px-6 py-3 rounded-lg text-xl font-bold"
+              className="h-12 w-fit text-2xl rounded-xl bg-slate-900 hover:bg-slate-300 border border-slate-600"
             >
-              🔁 Jogar Novamente
+              <AuroraText className="text-2xl font-semibold">
+                🔁 Jogar Novamente
+              </AuroraText>
             </Button>
           </div>
         )}
