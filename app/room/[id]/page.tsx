@@ -7,6 +7,8 @@ import { ALL_WORDS } from "@/lib/words";
 import { v4 as uuidv4 } from "uuid";
 import { Button } from "@/components/ui/button";
 import { FaCopy } from "react-icons/fa";
+import { RetroGrid } from "@/components/ui/retro-grid";
+import { AuroraText } from "@/components/ui/aurora-text";
 
 export default function RoomPage() {
   const { id } = useParams();
@@ -192,122 +194,127 @@ export default function RoomPage() {
   }
 
   return (
-    <div className="min-h-screen p-10 bg-black/60 text-white">
-      <h1 className="text-2xl font-semibold mb-6">
-        Sala:
-        <Button
-          onClick={async () => {
-            await navigator.clipboard.writeText(roomId);
-          }}
-          className="bg-blue-900 hover:bg-blue-800 cursor-pointer text-white px-2 py-3 rounded-lg text-xl font-bold ml-2"
-        >
-          <FaCopy /> {roomId}
-        </Button>
-      </h1>
+    <div>
+      <RetroGrid />
+      <div className="min-h-screen p-10 bg-black/60 text-white">
+        <h1 className="text-2xl font-semibold mb-6">
+          Sala:
+          <Button
+            onClick={async () => {
+              await navigator.clipboard.writeText(roomId);
+            }}
+            className="bg-blue-900 hover:bg-blue-800 cursor-pointer text-white px-2 py-3 rounded-lg text-xl font-bold ml-2"
+          >
+            <FaCopy /> {roomId}
+          </Button>
+        </h1>
 
-      {winner && (
-        <h2
-          className={`text-3xl mb-6 w-fit mx-auto font-bold ${
-            winner === "you" ? "text-green-400" : "text-red-400"
-          }`}
-        >
-          {winner === "you" ? "✅ VOCÊ GANHOU!" : "❌ O OPONENTE GANHOU"}
-        </h2>
-      )}
+        {winner && (
+          <h2
+            className={`text-3xl mb-6 w-fit mx-auto font-bold ${
+              winner === "you" ? "text-green-400" : "text-red-400"
+            }`}
+          >
+            {winner === "you" ? "✅ VOCÊ GANHOU!" : "❌ O OPONENTE GANHOU"}
+          </h2>
+        )}
 
-      <div className="grid grid-cols-2 gap-10">
-        <div className="p-6 border border-white/50 rounded-2xl">
-          <h2 className="mb-4 text-xl font-semibold">Você</h2>
+        <div className="grid grid-cols-2 gap-10">
+          <div className="p-6 border border-white/50 rounded-2xl">
+            <h2 className="mb-4 text-xl font-semibold">Você</h2>
 
-          <div className="mb-4">
-            {currentWord && renderWord(currentWord, input)}
+            <div className="mb-4">
+              {currentWord && renderWord(currentWord, input)}
+            </div>
+
+            <input
+              className="w-full p-3 text-white border border-white/50 rounded-lg text-lg"
+              value={input}
+              onChange={handleChange}
+              disabled={roomStatus !== "playing" || !!winner}
+            />
+
+            <p className="mt-4 font-semibold">
+              Palavra: {currentWordIndex + 1} / {WORDS.length}
+            </p>
           </div>
 
-          <input
-            className="w-full p-3 text-white border border-white/50 rounded-lg text-lg"
-            value={input}
-            onChange={handleChange}
-            disabled={roomStatus !== "playing" || !!winner}
-          />
+          <div className="p-6 border border-white/50 rounded-2xl">
+            <h2 className="mb-4 text-xl font-semibold">Oponente</h2>
 
-          <p className="mt-4 font-semibold">
-            Palavra: {currentWordIndex + 1} / {WORDS.length}
-          </p>
+            {opponent ? (
+              <>
+                <div className="mb-4">
+                  {renderWord(
+                    WORDS[opponent.word_index] || "",
+                    (WORDS[opponent.word_index] || "").slice(
+                      0,
+                      opponent.letter_index
+                    )
+                  )}
+                </div>
+
+                <p className="font-semibold">
+                  Palavra: {opponent.word_index + 1} / {WORDS.length}
+                </p>
+              </>
+            ) : (
+              <p>Aguardando oponente entrar...</p>
+            )}
+          </div>
         </div>
 
-        <div className="p-6 border border-white/50 rounded-2xl">
-          <h2 className="mb-4 text-xl font-semibold">Oponente</h2>
+        {roomStatus === "waiting" && (
+          <div className="mt-4 mx-auto w-fit">
+            <Button
+              onClick={async () => {
+                setReady(true);
+                await supabase
+                  .from("players")
+                  .update({ ready: true })
+                  .eq("id", playerId);
+              }}
+              className="h-12 w-fit text-2xl rounded-xl bg-slate-800 hover:bg-slate-600 border border-slate-600 cursor-pointer"
+              disabled={ready}
+            >
+              <AuroraText className="text-2xl font-semibold">
+                {ready ? "Aguardando oponente..." : "Estou pronto!"}
+              </AuroraText>
+            </Button>
+          </div>
+        )}
 
-          {opponent ? (
-            <>
-              <div className="mb-4">
-                {renderWord(
-                  WORDS[opponent.word_index] || "",
-                  (WORDS[opponent.word_index] || "").slice(
-                    0,
-                    opponent.letter_index
-                  )
-                )}
-              </div>
+        {winner && (
+          <div className="w-fit mx-auto mt-6">
+            <Button
+              onClick={async () => {
+                await supabase
+                  .from("rooms")
+                  .update({ status: "waiting" })
+                  .eq("id", roomId);
 
-              <p className="font-semibold">
-                Palavra: {opponent.word_index + 1} / {WORDS.length}
-              </p>
-            </>
-          ) : (
-            <p>Aguardando oponente entrar...</p>
-          )}
-        </div>
+                await supabase
+                  .from("players")
+                  .update({
+                    ready: false,
+                    finished: false,
+                    word_index: 0,
+                    letter_index: 0,
+                  })
+                  .eq("room_id", roomId);
+
+                setWinner(null);
+                setReady(false);
+                setCurrentWordIndex(0);
+                setInput("");
+              }}
+              className="bg-blue-900 hover:bg-blue-700 text-white px-6 py-3 rounded-lg text-xl font-bold"
+            >
+              🔁 Jogar Novamente
+            </Button>
+          </div>
+        )}
       </div>
-
-      {roomStatus === "waiting" && (
-        <div className="mt-4 mx-auto w-fit">
-          <Button
-            onClick={async () => {
-              setReady(true);
-              await supabase
-                .from("players")
-                .update({ ready: true })
-                .eq("id", playerId);
-            }}
-            className="bg-green-800 h-12 cursor-pointer hover:bg-green-600 text-white px-6 py-3 rounded-lg text-xl font-bold"
-            disabled={ready}
-          >
-            {ready ? "Aguardando oponente..." : "Estou pronto!"}
-          </Button>
-        </div>
-      )}
-
-      {winner && (
-        <div className="w-fit mx-auto mt-6">
-          <Button
-            onClick={async () => {
-              await supabase
-                .from("rooms")
-                .update({ status: "waiting" })
-                .eq("id", roomId);
-
-              await supabase
-                .from("players")
-                .update({
-                  ready: false,
-                  finished: false,
-                  word_index: 0,
-                  letter_index: 0,
-                })
-                .eq("room_id", roomId);
-
-              setWinner(null);
-              setReady(false);
-              setCurrentWordIndex(0);
-              setInput("");
-            }}
-            className="bg-blue-900 hover:bg-blue-700 text-white px-6 py-3 rounded-lg text-xl font-bold"
-          >
-            🔁 Jogar Novamente
-          </Button>
-        </div>
-      )}
     </div>
   );
 }
