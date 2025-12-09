@@ -19,7 +19,7 @@ export default function CreateRoomPage() {
   return (
     <div>
       <RetroGrid />
-      <div className="flex items-center mt-16 text-5xl font-semibold mx-auto w-fit">
+      <div className="flex items-center pt-12 text-5xl font-semibold mx-auto w-fit">
         Criando sala...
       </div>
     </div>
